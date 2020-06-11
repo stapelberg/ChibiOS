@@ -18,7 +18,24 @@ ENTRY(Reset_Handler)
 
 SECTIONS
 {
-    .vectors : ALIGN(16)
+/*
+
+The Teensy 4.1 has an ARM Cortex M7 with 160+16 interrupts, so we need to align
+256, the nearest power of two, as per:
+http://infocenter.arm.com/help/topic/com.arm.doc.dui0646c/DUI0646C_cortex_m7_dgug.pdf section 4.3.4:
+
+When setting TBLOFF, you must align the offset to the number of exception
+entries in the vector table. The minimum alignment is 32 words, enough for up to
+16 interrupts. For more interrupts, adjust the alignment by rounding up to the
+next power of two. For example, if you require 21 interrupts, the alignment must
+be on a 64-word boundary because the required table size is 37 words, and the
+next power of two is 64.
+
+Note: Table alignment requirements mean that bits[6:0] of the table offset are
+always zero.
+
+*/
+    .vectors : ALIGN(256)
     {
         KEEP(*(.vectors))
     } > VECTORS_FLASH AT > VECTORS_FLASH_LMA
