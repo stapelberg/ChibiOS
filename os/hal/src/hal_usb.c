@@ -63,6 +63,7 @@ static uint16_t get_hword(uint8_t *p) {
  */
 static void set_address(USBDriver *usbp) {
 
+  printf_debug("usb_hal.c set_address()\n");
   usbp->address = usbp->setup[2];
   usb_lld_set_address(usbp);
   _usb_isr_invoke_event_cb(usbp, USB_EVENT_ADDRESS);
@@ -92,6 +93,7 @@ static bool default_handler(USBDriver *usbp) {
     /* Just returns the current status word.*/
     usbSetupTransfer(usbp, (uint8_t *)&usbp->status, 2, NULL);
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_CLEAR_FEATURE << 8):
     /* Only the DEVICE_REMOTE_WAKEUP is handled here, any other feature
        number is handled as an error.*/
@@ -101,6 +103,7 @@ static bool default_handler(USBDriver *usbp) {
       return true;
     }
     return false;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_SET_FEATURE << 8):
     /* Only the DEVICE_REMOTE_WAKEUP is handled here, any other feature
        number is handled as an error.*/
@@ -110,22 +113,30 @@ static bool default_handler(USBDriver *usbp) {
       return true;
     }
     return false;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_SET_ADDRESS << 8):
     /* The SET_ADDRESS handling can be performed here or postponed after
        the status packed depending on the USB_SET_ADDRESS_MODE low
        driver setting.*/
+    printf_debug("set_address request\n");
 #if USB_SET_ADDRESS_MODE == USB_EARLY_SET_ADDRESS
     if ((usbp->setup[0] == USB_RTYPE_RECIPIENT_DEVICE) &&
         (usbp->setup[1] == USB_REQ_SET_ADDRESS)) {
+      printf_debug("early set_address()\n");
       set_address(usbp);
     }
+    printf_debug("usbSetupTransfer w/o callback\n");
     usbSetupTransfer(usbp, NULL, 0, NULL);
 #else
+    // We are taking this branch.
+    printf_debug("usbSetupTransfer w/ set_address callback\n");
     usbSetupTransfer(usbp, NULL, 0, set_address);
 #endif
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_GET_DESCRIPTOR << 8):
   case (uint32_t)USB_RTYPE_RECIPIENT_INTERFACE | ((uint32_t)USB_REQ_GET_DESCRIPTOR << 8):
+    printf_debug("get descriptor request!\n");
     /* Handling descriptor requests from the host.*/
     dp = usbp->config->get_descriptor_cb(usbp, usbp->setup[3],
                                          usbp->setup[2],
@@ -137,6 +148,7 @@ static bool default_handler(USBDriver *usbp) {
     usbSetupTransfer(usbp, (uint8_t *)dp->ud_string, dp->ud_size, NULL);
     /*lint -restore*/
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_GET_CONFIGURATION << 8):
     /* Returning the last selected configuration.*/
     usbSetupTransfer(usbp, &usbp->configuration, 1, NULL);
@@ -168,6 +180,7 @@ static bool default_handler(USBDriver *usbp) {
     }
     usbSetupTransfer(usbp, NULL, 0, NULL);
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_INTERFACE | ((uint32_t)USB_REQ_GET_STATUS << 8):
   case (uint32_t)USB_RTYPE_RECIPIENT_ENDPOINT | ((uint32_t)USB_REQ_SYNCH_FRAME << 8):
     /* Just sending two zero bytes, the application can change the behavior
@@ -176,6 +189,7 @@ static bool default_handler(USBDriver *usbp) {
     usbSetupTransfer(usbp, (uint8_t *)zero_status, 2, NULL);
     /*lint -restore*/
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_ENDPOINT | ((uint32_t)USB_REQ_GET_STATUS << 8):
     /* Sending the EP status.*/
     if ((usbp->setup[4] & 0x80U) != 0U) {
@@ -212,6 +226,7 @@ static bool default_handler(USBDriver *usbp) {
         return false;
       }
     }
+
   case (uint32_t)USB_RTYPE_RECIPIENT_ENDPOINT | ((uint32_t)USB_REQ_CLEAR_FEATURE << 8):
     /* Only ENDPOINT_HALT is handled as feature.*/
     if (usbp->setup[2] != USB_FEATURE_ENDPOINT_HALT) {
@@ -228,6 +243,7 @@ static bool default_handler(USBDriver *usbp) {
     }
     usbSetupTransfer(usbp, NULL, 0, NULL);
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_ENDPOINT | ((uint32_t)USB_REQ_SET_FEATURE << 8):
     /* Only ENDPOINT_HALT is handled as feature.*/
     if (usbp->setup[2] != USB_FEATURE_ENDPOINT_HALT) {
@@ -244,6 +260,7 @@ static bool default_handler(USBDriver *usbp) {
     }
     usbSetupTransfer(usbp, NULL, 0, NULL);
     return true;
+
   case (uint32_t)USB_RTYPE_RECIPIENT_DEVICE | ((uint32_t)USB_REQ_SET_DESCRIPTOR << 8):
   case (uint32_t)USB_RTYPE_RECIPIENT_INTERFACE | ((uint32_t)USB_REQ_CLEAR_FEATURE << 8):
   case (uint32_t)USB_RTYPE_RECIPIENT_INTERFACE | ((uint32_t)USB_REQ_SET_FEATURE << 8):
@@ -647,7 +664,7 @@ void usbWakeupHost(USBDriver *usbp) {
 
   if (usbp->state == USB_SUSPENDED) {
     /* Starting host wakeup procedure.*/
-    usb_lld_wakeup_host(usbp);
+    //usb_lld_wakeup_host(usbp);
   }
 }
 
@@ -776,11 +793,13 @@ void _usb_wakeup(USBDriver *usbp) {
 void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
   size_t max;
 
+  printf_debug("_usb_ep0setup()\n");
   /* Is the EP0 state machine in the correct state for handling setup
      packets?*/
   if (usbp->ep0state != USB_EP0_STP_WAITING) {
     /* This is unexpected could require handling with a warning event.*/
     /* CHTODO: handling here.*/
+    printf_debug("_usb_ep0setup() unexpected state!\n");
 
     /* Resetting the EP0 state machine and going ahead.*/
     usbp->ep0state = USB_EP0_STP_WAITING;
@@ -812,6 +831,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
     }
   }
 #if (USB_SET_ADDRESS_ACK_HANDLING == USB_SET_ADDRESS_ACK_HW)
+  printf_debug("set_address handled in hw\n");
   if (usbp->setup[1] == USB_REQ_SET_ADDRESS) {
     /* Zero-length packet sent by hardware */
     return;
@@ -823,6 +843,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
   max = (size_t)get_hword(&usbp->setup[6]);
   /* The transfer size cannot exceed the specified amount.*/
   if (usbp->ep0n > max) {
+    printf_debug("capping transfer from %d to %d\n", usbp->ep0n, max);
     usbp->ep0n = max;
   }
   if ((usbp->setup[0] & USB_RTYPE_DIR_MASK) == USB_RTYPE_DIR_DEV2HOST) {
@@ -830,6 +851,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
     if (usbp->ep0n != 0U) {
       /* Starts the transmit phase.*/
       usbp->ep0state = USB_EP0_IN_TX;
+      printf_debug("-> entering EP0_IN_TX (transmit)\n");
       osalSysLockFromISR();
       usbStartTransmitI(usbp, 0, usbp->ep0next, usbp->ep0n);
       osalSysUnlockFromISR();
@@ -838,6 +860,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
       /* No transmission phase, directly receiving the zero sized status
          packet.*/
       usbp->ep0state = USB_EP0_OUT_WAITING_STS;
+      printf_debug("-> entering EP0_OUT_WAITING_STS (await status)\n");
 #if (USB_EP0_STATUS_STAGE == USB_EP0_STATUS_STAGE_SW)
       osalSysLockFromISR();
       usbStartReceiveI(usbp, 0, NULL, 0);
@@ -852,6 +875,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
     if (usbp->ep0n != 0U) {
       /* Starts the receive phase.*/
       usbp->ep0state = USB_EP0_OUT_RX;
+      printf_debug("-> entering EP0_OUT_RX (receive)\n");
       osalSysLockFromISR();
       usbStartReceiveI(usbp, 0, (uint8_t *)usbp->ep0next, usbp->ep0n);
       osalSysUnlockFromISR();
@@ -860,6 +884,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
       /* No receive phase, directly sending the zero sized status
          packet.*/
       usbp->ep0state = USB_EP0_IN_SENDING_STS;
+      printf_debug("-> entering EP0_IN_SENDING_STS (send status)\n");
 #if (USB_EP0_STATUS_STAGE == USB_EP0_STATUS_STAGE_SW)
       osalSysLockFromISR();
       usbStartTransmitI(usbp, 0, NULL, 0);
@@ -884,6 +909,7 @@ void _usb_ep0setup(USBDriver *usbp, usbep_t ep) {
 void _usb_ep0in(USBDriver *usbp, usbep_t ep) {
   size_t max;
 
+  printf_debug("_usb_ep0in()\n");
   (void)ep;
   switch (usbp->ep0state) {
   case USB_EP0_IN_TX:
@@ -893,6 +919,7 @@ void _usb_ep0in(USBDriver *usbp, usbep_t ep) {
        transmitted.*/
     if ((usbp->ep0n < max) &&
         ((usbp->ep0n % usbp->epc[0]->in_maxsize) == 0U)) {
+      printf_debug("less than requested\n");
       osalSysLockFromISR();
       usbStartTransmitI(usbp, 0, NULL, 0);
       osalSysUnlockFromISR();
@@ -903,6 +930,7 @@ void _usb_ep0in(USBDriver *usbp, usbep_t ep) {
   case USB_EP0_IN_WAITING_TX0:
     /* Transmit phase over, receiving the zero sized status packet.*/
     usbp->ep0state = USB_EP0_OUT_WAITING_STS;
+    printf_debug("entering state EP0_OUT_WAITING_STS (receiving status packet)\n");
 #if (USB_EP0_STATUS_STAGE == USB_EP0_STATUS_STAGE_SW)
     osalSysLockFromISR();
     usbStartReceiveI(usbp, 0, NULL, 0);
@@ -912,6 +940,7 @@ void _usb_ep0in(USBDriver *usbp, usbep_t ep) {
 #endif
     return;
   case USB_EP0_IN_SENDING_STS:
+    printf_debug("ep0endcb\n");
     /* Status packet sent, invoking the callback if defined.*/
     if (usbp->ep0endcb != NULL) {
       usbp->ep0endcb(usbp);
@@ -955,6 +984,7 @@ void _usb_ep0out(USBDriver *usbp, usbep_t ep) {
   case USB_EP0_OUT_RX:
     /* Receive phase over, sending the zero sized status packet.*/
     usbp->ep0state = USB_EP0_IN_SENDING_STS;
+    printf_debug("ep0state = USB_EP0_IN_SENDING_STS\n");
 #if (USB_EP0_STATUS_STAGE == USB_EP0_STATUS_STAGE_SW)
     osalSysLockFromISR();
     usbStartTransmitI(usbp, 0, NULL, 0);

@@ -118,7 +118,7 @@ void chSysInit(void) {
  * @special
  */
 void chSysHalt(const char *reason) {
-
+printf_debug("\n  HALT: %s\n", reason);
   port_disable();
 
   /* Logging the event.*/

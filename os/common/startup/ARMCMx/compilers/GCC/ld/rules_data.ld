@@ -36,8 +36,16 @@ SECTIONS
         *(.bss)
         *(.bss.*)
         *(COMMON)
-        . = ALIGN(4);
+        . = ALIGN(32);
+	. = . + 32; /* MPU to trap stack overflow */
         __bss_end__ = .;
         PROVIDE(end = .);
     } > BSS_RAM
+
+    _sdata = ADDR(.data);
+    _edata = ADDR(.data) + SIZEOF(.data);
+    _sdataload = LOADADDR(.data);
+
+    _sbss = ADDR(.bss);
+    _ebss = ADDR(.bss) + SIZEOF(.bss);
 }

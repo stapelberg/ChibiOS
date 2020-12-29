@@ -115,14 +115,14 @@
  * @brief   DATA segment initialization switch.
  */
 #if !defined(CRT0_INIT_DATA) || defined(__DOXYGEN__)
-#define CRT0_INIT_DATA                      TRUE
+#define CRT0_INIT_DATA                      FALSE
 #endif
 
 /**
  * @brief   BSS segment initialization switch.
  */
 #if !defined(CRT0_INIT_BSS) || defined(__DOXYGEN__)
-#define CRT0_INIT_BSS                       TRUE
+#define CRT0_INIT_BSS                       FALSE
 #endif
 
 /**
@@ -136,14 +136,14 @@
  * @brief   Constructors invocation switch.
  */
 #if !defined(CRT0_CALL_CONSTRUCTORS) || defined(__DOXYGEN__)
-#define CRT0_CALL_CONSTRUCTORS              TRUE
+#define CRT0_CALL_CONSTRUCTORS              FALSE
 #endif
 
 /**
  * @brief   Destructors invocation switch.
  */
 #if !defined(CRT0_CALL_DESTRUCTORS) || defined(__DOXYGEN__)
-#define CRT0_CALL_DESTRUCTORS               TRUE
+#define CRT0_CALL_DESTRUCTORS               FALSE
 #endif
 
 /**

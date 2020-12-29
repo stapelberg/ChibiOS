@@ -646,7 +646,8 @@ typedef struct {
 #if !defined(pal_lld_togglepad) || defined(__DOXYGEN__)
 #define palTogglePad(port, pad) palTogglePort(port, PAL_PORT_BIT(pad))
 #else
-#define palTogglePad(port, pad) pal_lld_togglepad(port, pad)
+  void _pal_lld_togglepad(ioportid_t port, uint8_t pad);
+#define palTogglePad(port, pad) _pal_lld_togglepad(port, pad)
 #endif
 
 /**

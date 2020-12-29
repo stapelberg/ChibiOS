@@ -77,4 +77,6 @@ SECTIONS
     {
         *(.eh_frame)
     } > VARIOUS_FLASH AT > VARIOUS_FLASH_LMA
+
+    _flashimagelen = SIZEOF(.vectors) + SIZEOF(.xtors) + SIZEOF(.text) + SIZEOF(.rodata) + SIZEOF(.ARM.extab) + SIZEOF(.ARM.exidx) + SIZEOF(.eh_frame_hdr) + SIZEOF(.eh_frame);
 }

@@ -179,10 +179,15 @@ static void obnotify(io_buffers_queue_t *bqp) {
   size_t n;
   SerialUSBDriver *sdup = bqGetLinkX(bqp);
 
+  printf_debug("obnotify\n");
+  
   /* If the USB driver is not in the appropriate state then transactions
      must not be started.*/
   if ((usbGetDriverStateI(sdup->config->usbp) != USB_ACTIVE) ||
       (sdup->state != SDU_READY)) {
+    printf_debug("incorrect state: driver=%d, sdup=%d\n",
+		 (usbGetDriverStateI(sdup->config->usbp) != USB_ACTIVE),
+		 (sdup->state));
     return;
   }
 
@@ -193,6 +198,8 @@ static void obnotify(io_buffers_queue_t *bqp) {
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
     osalDbgAssert(buf != NULL, "buffer not found");
     usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
+  } else {
+      printf_debug("transaction already in progress\n");
   }
 }
 
@@ -313,6 +320,7 @@ void sduSuspendHookI(SerialUSBDriver *sdup) {
   if (bqIsSuspendedX(&sdup->ibqueue) && bqIsSuspendedX(&sdup->obqueue)) {
     return;
   }
+  printf_debug("sdup suspended\n");
   chnAddFlagsI(sdup, CHN_DISCONNECTED);
   bqSuspendI(&sdup->ibqueue);
   bqSuspendI(&sdup->obqueue);
@@ -335,6 +343,7 @@ void sduWakeupHookI(SerialUSBDriver *sdup) {
   chnAddFlagsI(sdup, CHN_CONNECTED);
   bqResumeX(&sdup->ibqueue);
   bqResumeX(&sdup->obqueue);
+  printf_debug("sdup woken up\n");
 }
 
 /**
@@ -345,7 +354,7 @@ void sduWakeupHookI(SerialUSBDriver *sdup) {
  * @iclass
  */
 void sduConfigureHookI(SerialUSBDriver *sdup) {
-
+  printf_debug("sdup configure hook\n");
   ibqResetI(&sdup->ibqueue);
   bqResumeX(&sdup->ibqueue);
   obqResetI(&sdup->obqueue);
@@ -353,6 +362,8 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
   chnAddFlagsI(sdup, CHN_CONNECTED);
   (void) sdu_start_receive(sdup);
 }
+
+volatile uint8_t txready = 0;
 
 /**
  * @brief   Default requests hook.
@@ -380,9 +391,15 @@ bool sduRequestsHook(USBDriver *usbp) {
       usbSetupTransfer(usbp, (uint8_t *)&linecoding, sizeof(linecoding), NULL);
       return true;
     case CDC_SET_CONTROL_LINE_STATE:
+      {
+      // TODO: if wValue bit 1 is set, we can start
+      const uint16_t wValue = usbp->setup[0] & 0x00FF;
+      txready = (wValue & 1);
+      printf_debug("txready = %d\n", txready);
       /* Nothing to do, there are no control lines.*/
       usbSetupTransfer(usbp, NULL, 0, NULL);
       return true;
+      }
     default:
       return false;
     }
@@ -400,7 +417,6 @@ bool sduRequestsHook(USBDriver *usbp) {
  * @iclass
  */
 void sduSOFHookI(SerialUSBDriver *sdup) {
-
   /* If the USB driver is not in the appropriate state then transactions
      must not be started.*/
   if ((usbGetDriverStateI(sdup->config->usbp) != USB_ACTIVE) ||
@@ -414,6 +430,10 @@ void sduSOFHookI(SerialUSBDriver *sdup) {
     return;
   }
 
+  if (!txready) {
+    return;
+  }
+
   /* Checking if there only a buffer partially filled, if so then it is
      enforced in the queue and transmitted.*/
   if (obqTryFlushI(&sdup->obqueue)) {
@@ -421,7 +441,6 @@ void sduSOFHookI(SerialUSBDriver *sdup) {
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
 
     osalDbgAssert(buf != NULL, "queue is empty");
-
     usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
   }
 }
@@ -439,6 +458,8 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
   size_t n;
   SerialUSBDriver *sdup = usbp->in_params[ep - 1U];
 
+  printf_debug("sdup data transmitted, sdup=%x, txsize=%d\n", sdup, usbp->epc[ep]->in_state->txsize);  
+  
   if (sdup == NULL) {
     return;
   }
@@ -455,7 +476,7 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
 
   /* Checking if there is a buffer ready for transmission.*/
   buf = obqGetFullBufferI(&sdup->obqueue, &n);
-
+  printf_debug("buf=%x\n", buf);  
   if (buf != NULL) {
     /* The endpoint cannot be busy, we are in the context of the callback,
        so it is safe to transmit without a check.*/
@@ -473,6 +494,7 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
   }
   else {
     /* Nothing to transmit.*/
+    printf_debug("nothing to transmit\n");
   }
 
   osalSysUnlockFromISR();
@@ -490,6 +512,8 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
   size_t size;
   SerialUSBDriver *sdup = usbp->out_params[ep - 1U];
 
+  printf_debug("sduDataReceived, sdup=%x\r\n", sdup);
+  
   if (sdup == NULL) {
     return;
   }
@@ -497,8 +521,10 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
   osalSysLockFromISR();
 
   /* Checking for zero-size transactions.*/
+  // TODO: this is accessing out_state->rxcnt
   size = usbGetReceiveTransactionSizeX(sdup->config->usbp,
                                        sdup->config->bulk_out);
+  printf_debug("size=%d\r\n", size);
   if (size > (size_t)0) {
     /* Signaling that data is available in the input queue.*/
     chnAddFlagsI(sdup, CHN_INPUT_AVAILABLE);

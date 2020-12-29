@@ -32,7 +32,7 @@
 /*===========================================================================*/
 
 #if !defined(CRT1_AREAS_NUMBER) || defined(__DOXYGEN__)
-#define CRT1_AREAS_NUMBER                   8
+#define CRT1_AREAS_NUMBER                   0
 #endif
 
 #if (CRT1_AREAS_NUMBER < 0) || (CRT1_AREAS_NUMBER > 8)
@@ -91,7 +91,12 @@ extern uint32_t __ram7_init_text__, __ram7_init__, __ram7_clear__, __ram7_noinit
  */
 #if (CRT1_AREAS_NUMBER > 0) || defined(__DOXYGEN__)
 static const ram_init_area_t ram_areas[CRT1_AREAS_NUMBER] = {
-  {&__ram0_init_text__, &__ram0_init__, &__ram0_clear__, &__ram0_noinit__},
+  {
+    .init_text_area = &__ram0_init_text__,
+    .init_area = &__ram0_init__,
+    .clear_area = &__ram0_clear__,
+    .no_init_area = &__ram0_noinit__,
+      },
 #if (CRT1_AREAS_NUMBER > 1) || defined(__DOXYGEN__)
   {&__ram1_init_text__, &__ram1_init__, &__ram1_clear__, &__ram1_noinit__},
 #endif

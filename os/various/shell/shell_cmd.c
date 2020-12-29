@@ -212,6 +212,25 @@ static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[]) {
 }
 #endif
 
+static void cmd_bug(BaseSequentialStream *chp, int argc, char *argv[]) {
+  thread_t *tp;
+  tfunc_t tfp;
+
+  (void)argv;
+  if (argc != 1) {
+    shellUsage(chp, "bug <number-of-bytes>");
+    return;
+  }
+  int num_bytes = atoi(argv[0]);
+  char *bytes = chHeapAlloc(NULL, num_bytes+1);
+  for (int i = 0; i < num_bytes; i++) {
+    bytes[i] = 'A';
+  }
+  bytes[num_bytes] = '\0';
+  chprintf(chp, "%s", bytes);
+}
+
+
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
@@ -241,6 +260,7 @@ const ShellCommand shell_local_commands[] = {
 #if SHELL_CMD_TEST_ENABLED == TRUE
   {"test", cmd_test},
 #endif
+  {"bug", cmd_bug},
   {NULL, NULL}
 };
 

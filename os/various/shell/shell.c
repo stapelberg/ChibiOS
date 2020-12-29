@@ -377,6 +377,7 @@ THD_FUNCTION(shellThread, p) {
       osalThreadSleepMilliseconds(100);
 #endif
     }
+    printf_debug("  shell line: *%s*\n", line);
     lp = parse_arguments(line, &tokp);
     cmd = lp;
     n = 0;
@@ -479,9 +480,12 @@ bool shellGetLine(ShellConfig *scfg, char *line, unsigned size, ShellHistory *sh
 
   while (true) {
     char c;
-
-    if (streamRead(chp, (uint8_t *)&c, 1) == 0)
+    printf_debug("[shell] reading 1 byte\n");
+    if (streamRead(chp, (uint8_t *)&c, 1) == 0) {
+          printf_debug("[shell] EOF\n");
       return true;
+    }
+    printf_debug("[shell] read: %x (%c)\n", c, c);
 #if SHELL_USE_ESC_SEQ == TRUE
     if (c == 27) {
       escape = true;
