@@ -55,8 +55,8 @@
         .align      4
         .globl      _vectors
 _vectors:
-        .long       __main_stack_end__
-        .long       Reset_Handler
+        .long       0x20010000 // __main_stack_end__
+        .long       ResetHandler
         .long       NMI_Handler
         .long       HardFault_Handler
         .long       MemManage_Handler
@@ -71,21 +71,44 @@ _vectors:
         .long       Vector34
         .long       PendSV_Handler
         .long       SysTick_Handler
-        .long       Vector40,   Vector44,   Vector48,   Vector4C
+        .long       Vector40 // eDMA0
+	.long       Vector44 // eDMA1
+	.long       Vector48 // eDMA2
+	.long       Vector4C // eDMA3
 #if CORTEX_NUM_VECTORS > 4
-        .long       Vector50,   Vector54,   Vector58,   Vector5C
+        .long       Vector50 // eDMA4
+	.long       Vector54 // eDMA5
+	.long       Vector58 // eDMA6
+	.long       Vector5C // eDMA7
 #endif
 #if CORTEX_NUM_VECTORS > 8
-        .long       Vector60,   Vector64,   Vector68,   Vector6C
+        .long       Vector60 // eDMA8
+	.long       Vector64 // eDMA9
+	.long       Vector68 // eDMA10
+	.long       Vector6C // eDMA11
 #endif
 #if CORTEX_NUM_VECTORS > 12
-        .long       Vector70,   Vector74,   Vector78,   Vector7C
+        .long       Vector70 // eDMA12
+	.long       Vector74 // eDMA13
+	.long       Vector78 // eDMA14
+	.long       Vector7C // eDMA15
 #endif
+/* Vector7C = DMA_ERROR */
+	
+/* Vector80 = CTI0 */
 #if CORTEX_NUM_VECTORS > 16
-        .long       Vector80,   Vector84,   Vector88,   Vector8C
+        .long       Vector80 // eDMA16
+	.long       Vector84 // eDMA17
+	.long       Vector88 // eDMA18
+	.long       Vector8C // eDMA19
 #endif
+/* Vector8C = lpuart1 */	
+/* Vector98 is serial3, i.e. LPUART4_IRQHandler */
 #if CORTEX_NUM_VECTORS > 20
-        .long       Vector90,   Vector94,   Vector98,   Vector9C
+        .long       Vector90 // LPUART1
+	.long       Vector94 // LPUART2
+	.long       Vector98 // LPUART3
+	.long       Vector9C // LPUART4
 #endif
 #if CORTEX_NUM_VECTORS > 24
         .long       VectorA0,   VectorA4,   VectorA8,   VectorAC
@@ -254,9 +277,6 @@ _vectors:
 
         .align      2
         .thumb_func
-        .weak       Reset_Handler
-Reset_Handler:
-         b          _crt0_entry
 
         .thumb_func
         .weak       NMI_Handler
