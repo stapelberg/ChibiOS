@@ -55,8 +55,8 @@
         .align      4
         .globl      _vectors
 _vectors:
-        .long       0x20010000 // __main_stack_end__
-        .long       ResetHandler
+        .long       __main_stack_end__
+        .long       Reset_Handler
         .long       NMI_Handler
         .long       HardFault_Handler
         .long       MemManage_Handler
@@ -277,6 +277,9 @@ _vectors:
 
         .align      2
         .thumb_func
+        .weak       Reset_Handler
+Reset_Handler:
+         b          _crt0_entry
 
         .thumb_func
         .weak       NMI_Handler
