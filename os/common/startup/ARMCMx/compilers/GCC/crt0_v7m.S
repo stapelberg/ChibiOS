@@ -115,14 +115,14 @@
  * @brief   DATA segment initialization switch.
  */
 #if !defined(CRT0_INIT_DATA) || defined(__DOXYGEN__)
-#define CRT0_INIT_DATA                      FALSE
+#define CRT0_INIT_DATA                      TRUE
 #endif
 
 /**
  * @brief   BSS segment initialization switch.
  */
 #if !defined(CRT0_INIT_BSS) || defined(__DOXYGEN__)
-#define CRT0_INIT_BSS                       FALSE
+#define CRT0_INIT_BSS                       TRUE
 #endif
 
 /**
@@ -136,14 +136,14 @@
  * @brief   Constructors invocation switch.
  */
 #if !defined(CRT0_CALL_CONSTRUCTORS) || defined(__DOXYGEN__)
-#define CRT0_CALL_CONSTRUCTORS              FALSE
+#define CRT0_CALL_CONSTRUCTORS              TRUE
 #endif
 
 /**
  * @brief   Destructors invocation switch.
  */
 #if !defined(CRT0_CALL_DESTRUCTORS) || defined(__DOXYGEN__)
-#define CRT0_CALL_DESTRUCTORS               FALSE
+#define CRT0_CALL_DESTRUCTORS               TRUE
 #endif
 
 /**
@@ -244,6 +244,8 @@ _crt0_entry:
                 /* CONTROL register initialization as configured.*/
                 msr     CONTROL, r0
                 isb
+
+	bl __flexram_init
 
 #if CRT0_INIT_CORE == TRUE
                 /* Core initialization.*/
